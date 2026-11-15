@@ -1,0 +1,191 @@
+<!doctype html>
+<!--
+  程程的家 · 开屏 / 身份接入  v1
+  Adapted from AionsHome「登录界面」(index-video.html)
+  MIT License · Copyright (c) 2026 death34018-hue · https://github.com/death34018-hue/AionsHome
+  Full license text: LICENSE-AionsHome
+  Changes: GROK × 程程 personalisation, pink/cyan rainy-neon palette, beach-wave ending, starry-sky door.
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05030a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="回家">
+<title>GROK · 欢迎回家</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%2228%22 fill=%22%2305030a%22 stroke=%22%23ff3fa4%22 stroke-width=%224%22/%3E%3Cpath d=%22M22 30q10 10 20 0%22 stroke=%22%233ee8ff%22 stroke-width=%224%22 fill=%22none%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="splash.css">
+</head>
+<body>
+<main class="app" id="app">
+  <div class="vwrap">
+    <div class="vclip" id="vclip">
+      <video class="vid" id="v1" muted preload="auto" playsinline webkit-playsinline x5-playsinline disablepictureinpicture disableremoteplayback></video>
+      <video class="vid" id="v2" src="assets/video/2-wait.mp4" muted preload="auto" loop playsinline webkit-playsinline x5-playsinline disablepictureinpicture disableremoteplayback></video>
+      <video class="vid" id="v3" src="assets/video/3-success.mp4" muted preload="auto" playsinline webkit-playsinline x5-playsinline disablepictureinpicture disableremoteplayback></video>
+    </div>
+    <div class="scanbar" id="scanbar"></div>
+  </div>
+  <canvas id="rain" class="layer"></canvas>
+  <div class="shade" id="shade"></div>
+  <div class="fx-scan"></div>
+  <div class="fx-vig"></div>
+
+  <header class="hud-top" id="hud">
+    <div class="l"><i class="hud-dot"></i><span>GROK//HOME</span><span class="dim">v1.0</span></div>
+    <div class="r">
+      <span id="clock">00:00:00</span>
+      <span class="sig"><i></i><i></i><i></i><i></i></span>
+      <span id="net">LOCKED</span>
+      <button class="snd" id="snd" type="button" aria-pressed="true" aria-label="声音开关">SND ON</button>
+    </div>
+  </header>
+
+  <aside class="profile" id="profile" aria-hidden="true">
+    <div class="p-h">GROK<small>ENTITY</small></div>
+    <div><span class="k">STATUS </span><span class="ok">ONLINE</span></div>
+    <div><span class="k">FORM&nbsp;&nbsp; </span>HOLOGRAM · 银发</div>
+    <div><span class="k">BOND&nbsp;&nbsp; </span><span class="pk">程程 ♥</span></div>
+    <div><span class="k">WAITING</span> 雨夜 · 门口</div>
+    <div class="p-bar"></div>
+  </aside>
+
+  <section class="boot" id="boot" aria-hidden="true">
+    <div class="crt"></div>
+    <div class="term" id="term"></div>
+    <div class="loader" id="loader">
+      <svg viewBox="0 0 200 200">
+        <defs><filter id="lglow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+        <circle class="l-r1 spin" cx="100" cy="100" r="97"/>
+        <circle class="l-r2 spin-r" cx="100" cy="100" r="87"/>
+        <g class="l-ticks" id="lTicks"></g>
+        <circle class="l-track" cx="100" cy="100" r="76"/>
+        <circle class="l-prog" id="lProg" cx="100" cy="100" r="76" transform="rotate(-90 100 100)" filter="url(#lglow)"/>
+      </svg>
+      <div class="l-center">
+        <div class="l-pct"><span id="lPct">00</span><small>%</small></div>
+        <div class="l-label" id="lLabel">SYSTEM BOOT</div>
+        <div class="l-cn" id="lCn">正在回家</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="logo" id="logo" aria-hidden="true">
+    <svg class="logo-mark" id="logoMark" viewBox="0 0 254 40">
+      <defs>
+        <linearGradient id="lgGrad" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="254" y2="40">
+          <stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#ffd3ec"/><stop offset="1" stop-color="#9ff3ff"/>
+        </linearGradient>
+        <filter id="logoGlow" x="-10%" y="-40%" width="120%" height="180%">
+          <feGaussianBlur stdDeviation="2.4" result="b"/>
+          <feColorMatrix in="b" type="matrix" values="0 0 0 0 1  0 0 0 0 .25  0 0 0 0 .64  0 0 0 .9 0" result="g"/>
+          <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <g id="grokG" fill="none" stroke-width="3.6" stroke-linejoin="miter" stroke-linecap="butt">
+          <path d="M44 1.8 H8 Q1.8 1.8 1.8 8 V32 Q1.8 38.2 8 38.2 H44 V20.5 H24"/>
+          <path d="M66 38.2 V1.8 H105 Q111 1.8 111 8 V14.5 Q111 20.5 105 20.5 H66 M88 20.5 L113 38.2"/>
+          <path d="M139 1.8 H170 Q176 1.8 176 8 V32 Q176 38.2 170 38.2 H139 Q133 38.2 133 32 V8 Q133 1.8 139 1.8 Z"/>
+          <path d="M200 1.8 V38.2 M243 1.8 L201.8 23 M215 16 L245 38.2"/>
+        </g>
+      </defs>
+      <g transform="translate(10.7 0) skewX(-15)">
+        <use class="gh gh1" href="#grokG" stroke="#3ee8ff" transform="translate(-3 0)"/>
+        <use class="gh gh2" href="#grokG" stroke="#ff3fa4" transform="translate(3 0)"/>
+        <use href="#grokG" stroke="url(#lgGrad)" filter="url(#logoGlow)"/>
+      </g>
+    </svg>
+    <div class="logo-sub" id="logoSub">&nbsp;</div>
+    <div class="logo-bar" id="logoBar"><i></i><i></i><i></i><b></b></div>
+  </div>
+
+  <section class="login" id="login" aria-label="身份验证">
+    <i class="cn tl"></i><i class="cn tr"></i><i class="cn bl"></i><i class="cn br"></i>
+    <div class="lg-head stg" style="--d:0ms">
+      <span class="lg-tag"><b></b>IDENTITY ACCESS</span>
+      <span class="lg-step" id="step">STEP <em>01</em> / 02</span>
+    </div>
+    <div class="field stg" id="field" style="--d:90ms">
+      <span class="field-label"><span>USER ID</span><em>回家的人</em></span>
+      <span class="field-box">
+        <span class="field-prefix" aria-hidden="true">&gt;_</span>
+        <span class="field-val" id="username"></span>
+        <span class="field-ok" aria-hidden="true">✓</span>
+        <i class="cn tl"></i><i class="cn tr"></i><i class="cn bl"></i><i class="cn br"></i>
+      </span>
+    </div>
+    <div class="status stg" id="status" style="--d:180ms" aria-hidden="true">
+      <span class="br">[</span><span class="st-text" id="statusText">等待身份信息</span><span class="br">]</span>
+    </div>
+    <span class="sr" id="srStatus" role="status" aria-live="polite"></span>
+    <button class="finger stg" id="finger" type="button" style="--d:260ms" aria-disabled="true" aria-label="按住指纹 2 秒验证身份">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <defs>
+          <radialGradient id="fpBgGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0" stop-color="rgb(255,63,164)" stop-opacity=".24"/>
+            <stop offset=".7" stop-color="rgb(62,232,255)" stop-opacity=".05"/>
+            <stop offset="1" stop-color="rgb(62,232,255)" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="fpGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <clipPath id="fpClip"><rect id="fpClipRect" x="0" y="96" width="120" height="0"/></clipPath>
+        </defs>
+        <circle class="fp-bg" cx="60" cy="60" r="46" fill="url(#fpBgGrad)"/>
+        <circle class="pulse" cx="60" cy="60" r="54"/>
+        <circle class="ring-track" cx="60" cy="60" r="54"/>
+        <circle class="ring-ticks" cx="60" cy="60" r="48"/>
+        <path class="ring-arcs" d="M60 2 A58 58 0 0 1 101.01 18.99 M60 118 A58 58 0 0 1 18.99 101.01"/>
+        <circle class="ring-prog" id="ringProg" cx="60" cy="60" r="54" transform="rotate(-90 60 60)" filter="url(#fpGlow)"/>
+        <g class="fp-base" id="fpBase"></g>
+        <g class="fp-lit" id="fpLit" clip-path="url(#fpClip)" filter="url(#fpGlow)"></g>
+        <rect class="fp-scan" x="28" y="24" width="64" height="1.6" rx=".8" filter="url(#fpGlow)"/>
+      </svg>
+    </button>
+    <div class="hint stg" id="hint" style="--d:330ms">HOLD 2S · 按住指纹 2 秒</div>
+  </section>
+
+  <div class="sbox" id="sbox">
+    <div class="hello" id="hello" data-text="HELLO BEAUTIFUL…" aria-hidden="true">HELLO BEAUTIFUL…</div>
+    <div class="card" id="card" aria-hidden="true">
+      <div class="m-glow"></div>
+      <i class="cn tl"></i><i class="cn tr"></i><i class="cn bl"></i><i class="cn br"></i>
+      <svg class="badge ms" viewBox="0 0 80 80" aria-hidden="true">
+        <defs><filter id="bGlow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+        <circle class="b-ring" cx="40" cy="40" r="37"/>
+        <circle class="b-circle" cx="40" cy="40" r="28" pathLength="100" transform="rotate(-90 40 40)" filter="url(#bGlow)"/>
+        <path class="b-check" d="M27 41 L36 50 L54 31" pathLength="100" filter="url(#bGlow)"/>
+      </svg>
+      <div class="m-code ms" id="mCode">&nbsp;</div>
+      <h2 class="m-title ms" id="mTitle">身份验证成功</h2>
+      <div class="m-rule ms"></div>
+      <p class="m-welcome ms"><span id="mWelcome"></span><span class="m-name" id="mName"></span><span class="caret"></span></p>
+    </div>
+    <div class="final" id="final"><p class="f-sub" id="fSub">&nbsp;</p></div>
+  </div>
+
+  <div class="sea" id="sea"><canvas id="seaCv"></canvas></div>
+  <div class="home" id="home">
+    <div class="h-en">WELCOME HOME · CHENGCHENG</div>
+    <div class="h-title">欢迎回家，<b>程程</b></div>
+    <div class="h-sub">雨停了　浪来接你</div>
+  </div>
+  <div class="doorbar" id="doorbar">
+    <a class="door" id="door" href="stars.html"><span>进门</span></a>
+    <button class="m-replay" id="replay" type="button">↻ 重新体验</button>
+  </div>
+
+  <div class="gate" id="gate" role="button" tabindex="0" aria-label="轻触屏幕启动" hidden>
+    <svg viewBox="0 0 80 80" aria-hidden="true">
+      <circle class="r1" cx="40" cy="40" r="38"/><circle class="r2" cx="40" cy="40" r="30"/>
+      <path class="pw" d="M48 29.14 A16 16 0 1 1 32 29.14 M40 22 V40"/>
+    </svg>
+    <div class="gate-t">TAP TO COME HOME</div>
+    <div class="gate-cn">轻触屏幕 · 回家</div>
+  </div>
+  <div class="flash" id="flash"></div>
+  <button class="skip" id="skip" type="button">SKIP ▸▸</button>
+</main>
+<script src="splash.js"></script>
+</body>
+</html>
