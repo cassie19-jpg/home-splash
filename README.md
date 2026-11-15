@@ -4,7 +4,9 @@ GROK × 程程 的开屏 / 身份接入动画：雨夜霓虹开机 → 实体档
 
 - `index.html` / `splash.css` / `splash.js`：开屏
 - `stars.html`：门后的星空（占位）
-- `assets/video/`：三段占位视频（之后换成新生成的）
+- `assets/video/1-boot.mp4`：程程用 Grok 生成的开机片段（只取 0–5.0 秒：碎片风暴拼成空的雨夜霓虹街，在巨大半透明人脸淡入前切掉；去音轨、右下角小字已抹掉）
+- `assets/img/hello-still.jpg`：硬切后的静帧场景（取自 HELLO_BEAUTIFUL.jpg，裁成 9:16 并裁掉原图自带的 HELLO BEAUTIFUL 字样，字由网页叠加）；细雨 / 霓虹微闪 / 慢推镜由 CSS + canvas 完成
+- `assets/audio/wave.mp3`（5s，轻浪涌上沙滩再退去）、`assets/audio/ding.mp3`（2s，星星落海的轻"叮"）：用 ElevenLabs Sound Effects（eleven text-to-sound）生成，只在用户触摸后播放
 - `?jump=beach`：直接预览结尾
 
 ## Credits

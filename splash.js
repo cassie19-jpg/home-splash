@@ -4,18 +4,20 @@
 'use strict';
 /* ======================= 可调参数 ======================= */
 const NAME     = '程程';
-const JOIN_AT  = 0.4;   // 开机代码动画后，视频 1 从第几秒接上
-const LOGO_OUT = 4.6;   // 视频 1 第几秒 GROK 标志淡出
-const LOGIN_AT = 6.2;   // 视频 1 第几秒滑出登录面板（共 8 秒）
-const CARD_AT  = 0.45;  // 视频 3 第几秒弹出"身份验证成功"
-const HELLO_AT = 1.3;   // 视频 3 第几秒打出 HELLO BEAUTIFUL…
-const FINAL_AT = 4.6;   // 视频 3 第几秒显示底部英文字幕
+const JOIN_AT  = 0.9;   // 开机代码动画后，视频 1 从第几秒接上（前 0.9 秒是黑屏）
+const LOGO_OUT = 3.4;   // 视频 1 第几秒 GROK 标志淡出（碎片拼成空街之后）
+const CUT_AT   = 4.95;  // 视频 1 第几秒扫描线一闪、硬切到静帧（视频共 5 秒）
+const LOGIN_AT = 0.8;   // 切到静帧后多少秒滑出登录面板
+const CARD_AT  = 0.5;   // 验证成功后多少秒弹出"身份验证成功"
+const HELLO_AT = 1.4;   // 验证成功后多少秒打出 HELLO BEAUTIFUL…
+const FINAL_AT = 4.6;   // 验证成功后多少秒显示底部英文字幕
+const SCENE_MS = 6500;  // 成功场景持续多久后进入结尾
 const SEA_DELAY= 1600;  // 视频 3 结束后多久开始"雨变浪"
 const HOLD_MS  = 2000;  // 指纹按住时长
 
 const $ = s => document.querySelector(s);
 const app = $('#app'), vclip = $('#vclip'), scanbar = $('#scanbar');
-const v1 = $('#v1'), v2 = $('#v2'), v3 = $('#v3');
+const v1 = $('#v1'), still = $('#still'), cutline = $('#cutline');
 const boot = $('#boot'), term = $('#term'), loader = $('#loader');
 const lPct = $('#lPct'), lProg = $('#lProg'), lLabel = $('#lLabel'), lCn = $('#lCn');
 const logo = $('#logo'), logoMark = $('#logoMark'), logoSub = $('#logoSub'), logoBar = $('#logoBar');
@@ -77,6 +79,7 @@ function ensureAudio() {
   try {
     if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
     if (actx.state === 'suspended') actx.resume();
+    decodeSfx();
   } catch (e) {}
 }
 const live = () => actx && soundOn && actx.state === 'running';
@@ -103,27 +106,38 @@ const sndAbort = () => {
   tone(560, .3, { type: 'sawtooth', vol: .2, at: .27, slideTo: 230, lp: 1900 });
 };
 const sndOk = () => { tone(880, .14, { vol: .045 }); tone(1320, .3, { vol: .045, at: .08 }); tone(1760, .4, { vol: .03, at: .18 }); };
-// 浪花"哗"：噪声 + 低通扫频（浪身），再叠一层高频嘶嘶（刚出生的小气泡在叫），然后慢慢静下去
-let noiseBuf = null;
-function sndWave(strength = 1) {
-  if (!live()) return;
-  if (!noiseBuf) {
-    noiseBuf = actx.createBuffer(1, actx.sampleRate * 4, actx.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    let b = 0; for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; b = .97 * b + .03 * w; d[i] = w * .6 + b * 2.2; }
+// 浪花声 + 结尾"叮"：真实录音（ElevenLabs 生成），页面加载时就预取，第一次触摸后解码，播放走 WebAudio（无延迟、受 SND 开关控制）
+const SFX_URLS = { wave: 'assets/audio/wave.mp3', ding: 'assets/audio/ding.mp3' };
+const sfxBytes = {}, sfxBuf = {}, sfxEl = {};
+for (const k in SFX_URLS) {
+  sfxBytes[k] = fetch(SFX_URLS[k]).then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+  const a = new Audio(); a.preload = 'auto'; a.src = SFX_URLS[k]; sfxEl[k] = a;   // 解码失败时的后备
+}
+let sfxDecoding = false;
+function decodeSfx() {
+  if (!actx || sfxDecoding) return;
+  sfxDecoding = true;
+  for (const k in SFX_URLS) {
+    sfxBytes[k].then(ab => ab && new Promise((ok, no) => actx.decodeAudioData(ab.slice(0), ok, no)))
+      .then(b => { if (b) sfxBuf[k] = b; }).catch(() => {});
   }
-  const t = actx.currentTime;
-  const body = actx.createBufferSource(); body.buffer = noiseBuf;
-  const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = .4;
-  lp.frequency.setValueAtTime(500, t); lp.frequency.exponentialRampToValueAtTime(2600, t + .7); lp.frequency.exponentialRampToValueAtTime(380, t + 3.6);
-  const g = actx.createGain(); g.gain.setValueAtTime(.0001, t);
-  g.gain.exponentialRampToValueAtTime(.32 * strength, t + .65); g.gain.exponentialRampToValueAtTime(.0001, t + 3.8);
-  body.connect(lp).connect(g).connect(actx.destination); body.start(t); body.stop(t + 3.9);
-  const fizz = actx.createBufferSource(); fizz.buffer = noiseBuf;
-  const hp = actx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 4200;
-  const g2 = actx.createGain(); g2.gain.setValueAtTime(.0001, t + .4);
-  g2.gain.exponentialRampToValueAtTime(.06 * strength, t + .9); g2.gain.exponentialRampToValueAtTime(.0001, t + 3.2);
-  fizz.connect(hp).connect(g2).connect(actx.destination); fizz.start(t + .4, 1); fizz.stop(t + 3.3);
+}
+function playSfx(k, vol = 1, rate = 1) {
+  if (!soundOn) return;
+  if (actx && actx.state === 'running' && sfxBuf[k]) {
+    const s = actx.createBufferSource(), g = actx.createGain();
+    s.buffer = sfxBuf[k]; s.playbackRate.value = rate; g.gain.value = vol;
+    s.connect(g).connect(actx.destination); s.start();
+    return;
+  }
+  const a = sfxEl[k];
+  if (a) { try { a.currentTime = 0; a.volume = Math.min(1, vol); const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+}
+// iOS：在用户手势里把后备 <audio> 静音地"点一下"，之后才能随时播放
+let sfxPrimed = false;
+function primeSfx() {
+  if (sfxPrimed) return; sfxPrimed = true;
+  for (const k in sfxEl) { const a = sfxEl[k]; a.muted = true; const p = a.play(); if (p && p.then) p.then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; }); }
 }
 const scanSnd = {
   o: null, g: null,
@@ -202,6 +216,31 @@ function fadeRain() {
 }
 let rzT; addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => { sizeRain(); sizeSea(); }, 120); });
 
+/* ======================= 静帧上的细雨 ======================= */
+const srCv = $('#stillRain'), srx = srCv.getContext('2d');
+let srOn = false, srDrops = [], srW = 0, srH = 0, srLast = 0;
+function sizeStillRain() {
+  const r = app.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+  srW = r.width; srH = r.height; srCv.width = Math.round(srW * dpr); srCv.height = Math.round(srH * dpr);
+  srx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  srDrops = Array.from({ length: Math.round(srW * srH / 2400) }, () => ({ x: Math.random() * srW, y: Math.random() * srH, v: 7 + Math.random() * 8, l: 8 + Math.random() * 16, a: .08 + Math.random() * .22 }));
+}
+function stillRainFrame(now) {
+  if (!srOn) return;
+  requestAnimationFrame(stillRainFrame);
+  if (now - srLast < 30) return;   // ~30fps 足够，省电
+  srLast = now;
+  srx.clearRect(0, 0, srW, srH); srx.lineWidth = 1; srx.lineCap = 'round';
+  for (const d of srDrops) {
+    d.y += d.v; d.x -= d.v * .06;
+    if (d.y > srH + 20) { d.y = -20; d.x = Math.random() * srW * 1.05; }
+    srx.strokeStyle = `rgba(210,225,255,${d.a})`;
+    srx.beginPath(); srx.moveTo(d.x, d.y); srx.lineTo(d.x + d.l * .06, d.y - d.l); srx.stroke();
+  }
+}
+function startStillRain() { if (srOn) return; srOn = true; sizeStillRain(); requestAnimationFrame(stillRainFrame); }
+addEventListener('resize', () => { if (srOn) sizeStillRain(); });
+
 /* ======================= 加载环 ======================= */
 (() => {
   let s = '';
@@ -270,7 +309,7 @@ function prime(v) {
   const p = v.play();
   if (p && p.then) p.then(() => { if (v !== current) { v.pause(); seek(v, startAt(v)); } }).catch(() => { v._primed = false; });
 }
-const unlockVideos = () => { prime(v1); prime(v2); prime(v3); };
+const unlockVideos = () => { prime(v1); };
 v1.addEventListener('loadedmetadata', () => { if (current !== v1 && v1.paused) seek(v1, JOIN_AT); });
 // 视频 1 先整段读进内存（blob），保证在任何静态服务器上都能准确跳到 JOIN_AT
 const V1_URL = 'assets/video/1-boot.mp4';
@@ -355,12 +394,25 @@ async function intro() {
   revealVideo(false); glitch(); flyLogo(); fadeRain();
   sndJoin();
   setTimeout(() => boot.classList.add('gone'), 500);
-  if (!ok) { await wait(1800); if (!skipping) { handOffLogo(); showLogin(); switchTo(v2); } return; }
-  at(v1, LOGIN_AT, 15000).then(() => { if (!skipping) showLogin(); });
+  if (!ok) { await wait(1800); if (!skipping) { handOffLogo(); cutToStill(); } return; }
+  at(v1, CUT_AT, 15000).then(() => { if (!skipping) cutToStill(); });
   await at(v1, LOGO_OUT, 12000); if (skipping) return;
   handOffLogo();
 }
-v1.addEventListener('ended', () => { if (current === v1) { showLogin(); switchTo(v2); } });
+v1.addEventListener('ended', () => { if (current === v1) cutToStill(); });
+// 视频 1 结束：一道横向扫描线闪过 → 硬切到静帧场景（细雨 + 霓虹微闪 + 极慢推镜）
+let cut = false;
+function cutToStill(fast) {
+  if (cut) return;
+  cut = true;
+  cutline.classList.remove('go'); void cutline.offsetWidth; cutline.classList.add('go');
+  sndJoin();
+  setTimeout(() => {
+    still.classList.add('on'); startStillRain(); flash(); glitch();
+    setTimeout(() => { v1.pause(); v1.classList.remove('on'); }, 200);
+    setTimeout(showLogin, fast ? 200 : LOGIN_AT * 1000);
+  }, fast ? 60 : 150);
+}
 
 let loginShown = false;
 function showLogin() {
@@ -381,8 +433,7 @@ function skipAll() {
   logo.classList.add('gone');
   if (rainOn) fadeRain();
   if (!vclip.classList.contains('revealing') && !vclip.classList.contains('shown')) { revealVideo(true); flash(); }
-  showLogin();
-  switchTo(v2);
+  cutToStill(true);
 }
 skipBtn.addEventListener('click', skipAll);
 
@@ -392,14 +443,14 @@ function start() {
   if (reduced) { skipAll(); return; }
   // 声音要一次触摸才解锁：AudioContext 已能运行就直接开场，否则显示"轻触 · 回家"
   let running = false;
-  try { const c = new (window.AudioContext || window.webkitAudioContext)(); running = c.state === 'running'; if (running) actx = c; else if (c.close) c.close(); } catch (e) {}
+  try { const c = new (window.AudioContext || window.webkitAudioContext)(); running = c.state === 'running'; if (running) { actx = c; decodeSfx(); } else if (c.close) c.close(); } catch (e) {}
   if (running) { beginIntro(); return; }
   gate.hidden = false; void gate.offsetWidth; gate.classList.add('on');
 }
 function startFromGate() {
   if (gate._busy) return;
   gate._busy = true;
-  ensureAudio(); unlockVideos();
+  ensureAudio(); unlockVideos(); primeSfx();
   gate.classList.remove('on'); setTimeout(() => { gate.hidden = true; }, 500);
   setTimeout(beginIntro, 350);
 }
@@ -522,7 +573,7 @@ function pressEnd() {
 }
 finger.addEventListener('pointerdown', e => {
   if (e.pointerType === 'mouse' && e.button !== 0) return;
-  e.preventDefault(); ensureAudio(); prime(v3);
+  e.preventDefault(); ensureAudio(); primeSfx();
   try { finger.setPointerCapture(e.pointerId); } catch (err) {}
   pressStart();
 });
@@ -545,14 +596,15 @@ async function success() {
   flash(); app.classList.add('granted'); netEl.textContent = 'HOME';
   await sleep(550);
   login.classList.add('out'); shade.classList.remove('on'); profile.classList.add('out');
-  switchTo(v3);
-  await at(v3, CARD_AT, (CARD_AT + 8) * 1000);
+  still.classList.add('granted');   // 静帧推近、提亮，霓虹更亮
+  const t0s = performance.now(), until = ms => sleep(Math.max(0, ms - (performance.now() - t0s)));
+  await until(CARD_AT * 1000);
   showCard();
-  await at(v3, HELLO_AT, (HELLO_AT + 8) * 1000);
+  await until(HELLO_AT * 1000);
   hello.classList.add('on'); sndLogo();
-  await at(v3, FINAL_AT, (FINAL_AT + 8) * 1000);
+  await until(FINAL_AT * 1000);
   showFinal();
-  await at(v3, 99, 9000);   // 等视频 3 播完
+  await until(SCENE_MS);
   await sleep(SEA_DELAY);
   beach();
 }
@@ -642,7 +694,7 @@ function drawBeach(t, alpha) {
   const wt = t - WAVE0;   // 浪
   if (wt >= 0) {
     const n = Math.floor(wt / PERIOD), u = (wt % PERIOD) / PERIOD;
-    if (n !== lastWave) { lastWave = n; sndWave(n === 0 ? 1.15 : .8); }
+    if (n !== lastWave) { lastWave = n; playSfx('wave', n === 0 ? .9 : .55, n === 0 ? 1 : .94 + (n % 3) * .04); }
     const reach = SH * (REACH - (n % 2) * .04);
     let y, rising = false;
     if (u < .36) { y = sh + (reach - sh) * easeOut(u / .36); rising = true; }
@@ -700,6 +752,35 @@ function seaFrame(now) {
   if (beachA > 0) drawBeach(t, beachA);
   const dens = t < 1.4 ? .3 + t * .5 : clamp01(1 - (t - 1.4) / 3.2);   // 然后雨落进海里，慢慢停
   if (dens > 0) drawRain(t, dens);
+  if (beachA >= 1) drawStarDrop(t);
+}
+// 浪声快结束时：一颗小星星掉进海里，"叮"
+const STAR_T0 = WAVE0 + 3.9, STAR_FALL = .7;
+let dinged = false;
+function drawStarDrop(t) {
+  const k = (t - STAR_T0) / STAR_FALL;
+  if (k < 0 || k > 4) return;
+  const c = sctx, hz = SH * HORIZON, sx0 = SW * .9, sy0 = SH * .1, sx1 = SW * .66, sy1 = hz + (SH * SHORE - hz) * .3;
+  if (k < 1) {   // 下落
+    const e = k * k, x = sx0 + (sx1 - sx0) * e, y = sy0 + (sy1 - sy0) * e;
+    const tx = x + (sx0 - sx1) * .08, ty = y - (sy1 - sy0) * .08 - 10;
+    const g = c.createLinearGradient(x, y, tx, ty);
+    g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(1, 'rgba(255,170,220,0)');
+    c.strokeStyle = g; c.lineWidth = 1.6; c.beginPath(); c.moveTo(x, y); c.lineTo(tx, ty); c.stroke();
+    c.fillStyle = '#fff'; c.beginPath(); c.arc(x, y, 1.8, 0, 6.28); c.fill();
+  } else {       // 落水：一圈光涟漪 + 一点闪光
+    if (!dinged) { dinged = true; playSfx('ding', .5); }
+    const q = k - 1, a = clamp01(1 - q / 3);
+    c.save();
+    c.shadowColor = 'rgba(255,220,240,.9)'; c.shadowBlur = 12 * a;
+    c.fillStyle = `rgba(255,255,255,${.9 * clamp01(1 - q * 1.5)})`; c.beginPath(); c.arc(sx1, sy1, 2.6, 0, 6.28); c.fill();
+    c.restore();
+    for (let i = 0; i < 2; i++) {
+      const r = (q - i * .35) * 26; if (r <= 0) continue;
+      c.strokeStyle = `rgba(255,${i ? 230 : 200},${i ? 255 : 235},${.55 * a})`; c.lineWidth = 1;
+      c.beginPath(); c.ellipse(sx1, sy1, r, r * .22, 0, 0, 6.28); c.stroke();
+    }
+  }
 }
 let beachStarted = false;
 function beach() {
