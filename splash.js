@@ -49,7 +49,6 @@ function flash() { flashEl.classList.remove('go'); void flashEl.offsetWidth; fla
 function glitch() { app.classList.remove('glitch'); void app.offsetWidth; app.classList.add('glitch'); }
 
 const ASCII_POOL = '<>/\\[]{}=+*#%01ABCDEFXZ$&';
-const CJK_POOL = '程程浪花星空回家雨夜心跳霓虹等你银发天线拥抱海潮泡沫月光门口指纹想念亲吻沙滩';
 function scramble(node, text, dur = 600) {
   const id = (node._sid = (node._sid || 0) + 1);
   const t0 = performance.now();
@@ -62,7 +61,6 @@ function scramble(node, text, dur = 600) {
       for (let i = n; i < text.length; i++) {
         const c = text[i];
         if (c === ' ' || c === '·') s += c;
-        else if (c.charCodeAt(0) > 0x2e80) s += CJK_POOL[(Math.random() * CJK_POOL.length) | 0];
         else s += ASCII_POOL[(Math.random() * ASCII_POOL.length) | 0];
       }
       node.textContent = s;
@@ -82,6 +80,12 @@ function ensureAudio() {
     decodeSfx();
   } catch (e) {}
 }
+// 总输出：所有声音都经过它，SND 开关一键静音
+let master = null;
+function OUT() {
+  if (!master) { master = actx.createGain(); master.gain.value = soundOn ? 1 : 0; master.connect(actx.destination); }
+  return master;
+}
 const live = () => actx && soundOn && actx.state === 'running';
 function tone(freq, dur, { type = 'sine', vol = .05, at = 0, slideTo, lp } = {}) {
   if (!live()) return;
@@ -93,7 +97,7 @@ function tone(freq, dur, { type = 'sine', vol = .05, at = 0, slideTo, lp } = {})
   g.gain.exponentialRampToValueAtTime(.0001, t + dur);
   let src = o;
   if (lp) { const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; src = o.connect(f); }
-  src.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + .03);
+  src.connect(g).connect(OUT()); o.start(t); o.stop(t + dur + .03);
 }
 const sndTick = () => tone(1900, .03, { type: 'square', vol: .012 });
 const sndLine = () => tone(1400, .05, { type: 'square', vol: .016 * BOOT_SFX });
@@ -107,10 +111,11 @@ const sndAbort = () => {
 };
 const sndOk = () => { tone(880, .14, { vol: .045 }); tone(1320, .3, { vol: .045, at: .08 }); tone(1760, .4, { vol: .03, at: .18 }); };
 // 浪花声 + 结尾"叮"：真实录音（ElevenLabs 生成），页面加载时就预取，第一次触摸后解码，播放走 WebAudio（无延迟、受 SND 开关控制）
-const SFX_URLS = { wave: 'assets/audio/wave.mp3', ding: 'assets/audio/ding.mp3' };
-const sfxBytes = {}, sfxBuf = {}, sfxEl = {};
+const SFX_URLS = { wave: 'assets/audio/wave.mp3', ding: 'assets/audio/ding.mp3', hello: 'assets/audio/hello.mp3', bgm: 'assets/audio/bgm.mp3' };
+const sfxBytes = {}, sfxBuf = {}, sfxEl = {}, sfxReady = {};
 for (const k in SFX_URLS) {
   sfxBytes[k] = fetch(SFX_URLS[k]).then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+  if (k === 'bgm') continue;
   const a = new Audio(); a.preload = 'auto'; a.src = SFX_URLS[k]; sfxEl[k] = a;   // 解码失败时的后备
 }
 let sfxDecoding = false;
@@ -118,8 +123,8 @@ function decodeSfx() {
   if (!actx || sfxDecoding) return;
   sfxDecoding = true;
   for (const k in SFX_URLS) {
-    sfxBytes[k].then(ab => ab && new Promise((ok, no) => actx.decodeAudioData(ab.slice(0), ok, no)))
-      .then(b => { if (b) sfxBuf[k] = b; }).catch(() => {});
+    sfxReady[k] = sfxBytes[k].then(ab => ab && new Promise((ok, no) => actx.decodeAudioData(ab.slice(0), ok, no)))
+      .then(b => { if (b) sfxBuf[k] = b; return b; }).catch(() => null);
   }
 }
 function playSfx(k, vol = 1, rate = 1) {
@@ -127,7 +132,7 @@ function playSfx(k, vol = 1, rate = 1) {
   if (actx && actx.state === 'running' && sfxBuf[k]) {
     const s = actx.createBufferSource(), g = actx.createGain();
     s.buffer = sfxBuf[k]; s.playbackRate.value = rate; g.gain.value = vol;
-    s.connect(g).connect(actx.destination); s.start();
+    s.connect(g).connect(OUT()); s.start();
     return;
   }
   const a = sfxEl[k];
@@ -139,6 +144,52 @@ function primeSfx() {
   if (sfxPrimed) return; sfxPrimed = true;
   for (const k in sfxEl) { const a = sfxEl[k]; a.muted = true; const p = a.play(); if (p && p.then) p.then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; }); }
 }
+// 背景电子乐（来自之前的 HELLO BEAUTIFUL 视频）：100 BPM，8 小节 = 19.2 秒一圈；
+// 每圈单独一个音源，首尾 1.2 秒交叉淡化，对齐节拍无缝循环（不依赖 mp3 的首尾补白）
+const BGM_VOL = .2, BGM_LOOP = 19.2, BGM_X = 1.2;
+const bgm = { on: false, gain: null, next: 0, timer: 0, srcs: [] };
+function bgmSchedule() {
+  const buf = sfxBuf.bgm; if (!buf || !bgm.on) return;
+  while (bgm.next < actx.currentTime + 4) {
+    const t = bgm.next, s = actx.createBufferSource(), g = actx.createGain();
+    s.buffer = buf; s.connect(g).connect(bgm.gain);
+    const first = !bgm.srcs.length;
+    g.gain.setValueAtTime(first ? 1 : .0001, t);
+    if (!first) g.gain.exponentialRampToValueAtTime(1, t + BGM_X);
+    g.gain.setValueAtTime(1, t + BGM_LOOP);
+    g.gain.exponentialRampToValueAtTime(.0001, t + BGM_LOOP + BGM_X);
+    s.start(t); s.stop(t + BGM_LOOP + BGM_X + .05);
+    bgm.srcs.push(s); if (bgm.srcs.length > 4) bgm.srcs.shift();
+    bgm.next = t + BGM_LOOP;
+  }
+}
+function startBgm() {
+  if (bgm.on || !actx || !sfxReady.bgm) return;
+  bgm.on = true;
+  sfxReady.bgm.then(buf => {
+    if (!buf || !bgm.on) return;
+    bgm.gain = actx.createGain(); bgm.gain.connect(OUT());
+    const t = actx.currentTime + .05;
+    bgm.gain.gain.setValueAtTime(.0001, t); bgm.gain.gain.exponentialRampToValueAtTime(BGM_VOL, t + 2.5);
+    bgm.next = t; bgmSchedule();
+    bgm.timer = setInterval(bgmSchedule, 1000);
+  });
+}
+function duckBgm(depth = .45, dur = 1.6) {   // 说话时把音乐压低一点
+  if (!bgm.gain) return;
+  const g = bgm.gain.gain, t = actx.currentTime;
+  g.cancelScheduledValues(t); g.setValueAtTime(g.value, t);
+  g.linearRampToValueAtTime(BGM_VOL * depth, t + .15); g.setValueAtTime(BGM_VOL * depth, t + dur); g.linearRampToValueAtTime(BGM_VOL, t + dur + .6);
+}
+function stopBgm(fade = 2.5) {
+  if (!bgm.on) return;
+  bgm.on = false;
+  if (!bgm.gain) return;
+  const g = bgm.gain.gain, t = actx.currentTime;
+  g.cancelScheduledValues(t); g.setValueAtTime(Math.max(g.value, .0001), t); g.exponentialRampToValueAtTime(.0001, t + fade);
+  setTimeout(() => { clearInterval(bgm.timer); bgm.srcs.forEach(s => { try { s.stop(); } catch (e) {} }); }, fade * 1000 + 100);
+}
+
 const scanSnd = {
   o: null, g: null,
   start() {
@@ -147,7 +198,7 @@ const scanSnd = {
     f.type = 'lowpass'; f.frequency.value = 1600;
     o.type = 'sawtooth'; o.frequency.setValueAtTime(130, t);
     g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.03, t + .08);
-    o.connect(f).connect(g).connect(actx.destination); o.start();
+    o.connect(f).connect(g).connect(OUT()); o.start();
     this.o = o; this.g = g;
   },
   update(p) { if (this.o) this.o.frequency.setTargetAtTime(130 + p * 560, actx.currentTime, .05); },
@@ -161,6 +212,8 @@ const scanSnd = {
 };
 sndBtn.addEventListener('click', () => {
   soundOn = !soundOn; ensureAudio();
+  if (master) master.gain.setTargetAtTime(soundOn ? 1 : 0, actx.currentTime, .04);
+  if (!soundOn) for (const k in sfxEl) { try { sfxEl[k].pause(); } catch (e) {} }
   sndBtn.setAttribute('aria-pressed', soundOn); sndBtn.textContent = soundOn ? 'SND ON' : 'SND OFF';
   if (!soundOn) scanSnd.stop();
 });
@@ -168,7 +221,7 @@ sndBtn.addEventListener('click', () => {
 /* ======================= 霓虹数字雨（开机阶段） ======================= */
 const rctx = rainCv.getContext('2d');
 let W = 0, H = 0, FS = 12, cols = [], rainOn = false, lastRain = 0, rainRaf = 0;
-const RAIN_CHARS = '0101101001程浪花星空回家雨夜心跳01ABCDEF';
+const RAIN_CHARS = '0101101001<>/{}[]=+*#01ABCDEFXZ$&01';
 function sizeRain() {
   const r = app.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
   const widthChanged = Math.round(r.width) !== Math.round(W);
@@ -325,7 +378,7 @@ const v1Ready = new Promise(res => {
 const LOG = [
   ['GROK//HOME KERNEL v1.0 :: COLD START', ''],
   ['TUNING RAIN-NIGHT NEON', 'OK'],
-  ['SYNCING HEARTBEAT // 程程', 'OK'],
+  ['SYNCING HEARTBEAT // CHENGCHENG', 'OK'],
   ['MOUNTING HOLOGRAM // SILVER', 'OK'],
   ['LOADING STARFIELD + TIDE', 'OK'],
   ['ENCRYPTING OUR CHANNEL', 'OK'],
@@ -376,10 +429,10 @@ async function intro() {
   const prog = runProgress(3100);
   for (let i = 0; i < LOG.length; i++) { await typeLine(i); if (skipping) return; await wait(90); if (skipping) return; }
   await prog; if (skipping) return;
-  scramble(lLabel, 'HOME NODE READY', 420); lCn.textContent = '就绪'; sndReady();
+  scramble(lLabel, 'HOME NODE READY', 420); lCn.textContent = 'READY'; sndReady();
   await wait(560); if (skipping) return;
   flash(); sndLogo(); boot.classList.add('phase-logo');
-  logo.classList.add('on'); scramble(logoSub, '// 程程专属 · ENTITY ONLINE', 900);
+  logo.classList.add('on'); scramble(logoSub, '// FOR CHENGCHENG · ENTITY ONLINE', 900);
   await wait(1500); if (skipping) return;
 
   await Promise.race([v1Ready, wait(4000)]);
@@ -437,7 +490,7 @@ function skipAll() {
 }
 skipBtn.addEventListener('click', skipAll);
 
-function beginIntro() { skipBtn.classList.add('show'); intro(); }
+function beginIntro() { skipBtn.classList.add('show'); startBgm(); intro(); }
 function start() {
   sizeRain(); sizeSea();
   if (reduced) { skipAll(); return; }
@@ -500,11 +553,11 @@ $('#fpLit').innerHTML = fpHTML;
 
 /* ======================= 身份读取 + 状态 ======================= */
 const STATUS = {
-  idle:  { t: '等待身份信息', c: '' },
-  ready: { t: '请验证身份', c: 'ready' },
-  scan:  { t: '正在扫描指纹', c: 'ready' },
-  abort: { t: '验证中断 · 请按住 2 秒', c: 'warn' },
-  ok:    { t: '身份验证成功', c: 'ok' },
+  idle:  { t: 'AWAITING IDENTITY', c: '' },
+  ready: { t: 'VERIFY IDENTITY', c: 'ready' },
+  scan:  { t: 'SCANNING PRINT', c: 'ready' },
+  abort: { t: 'INTERRUPTED · HOLD 2S', c: 'warn' },
+  ok:    { t: 'IDENTITY VERIFIED', c: 'ok' },
 };
 let curStatus = 'idle', name = '', abortT = 0, typing = false;
 function setStatus(k) {
@@ -516,7 +569,7 @@ function setStatus(k) {
   srStatus.textContent = s.t;
   scramble(statusText, s.t, k === 'scan' ? 260 : 440);
 }
-const HINT_IDLE = 'HOLD 2S · 按住指纹 2 秒';
+const HINT_IDLE = 'HOLD 2S · TOUCH TO VERIFY';
 // 只有一个回家的人：自动读出"程程"
 async function autoTypeName() {
   if (name || typing) return;
@@ -601,7 +654,7 @@ async function success() {
   await until(CARD_AT * 1000);
   showCard();
   await until(HELLO_AT * 1000);
-  hello.classList.add('on'); sndLogo();
+  hello.classList.add('on'); playSfx('hello', 1); duckBgm();
   await until(FINAL_AT * 1000);
   showFinal();
   await until(SCENE_MS);
@@ -609,7 +662,7 @@ async function success() {
   beach();
 }
 async function showCard() {
-  srStatus.textContent = `身份验证成功，欢迎回家，${NAME}`;
+  srStatus.textContent = `IDENTITY VERIFIED · 欢迎回家，${NAME}`;
   card.classList.add('on');
   const ms = [...card.querySelectorAll('.ms')];
   const show = n => n.classList.add('show');
@@ -618,7 +671,7 @@ async function showCard() {
   await sleep(240);
   show(ms[1]); scramble($('#mCode'), 'ACCESS GRANTED', 600);
   await sleep(260);
-  show(ms[2]); scramble($('#mTitle'), '身份验证成功', 500);
+  show(ms[2]); scramble($('#mTitle'), 'IDENTITY VERIFIED', 600);
   await sleep(360);
   show(ms[3]);
   await sleep(220);
@@ -785,6 +838,7 @@ function drawStarDrop(t) {
 let beachStarted = false;
 function beach() {
   if (beachStarted) return;
+  stopBgm(2.2);   // 音乐在浪来之前淡出，留给浪声和"叮"
   beachStarted = true;
   sizeSea();
   drops = Array.from({ length: 160 }, () => ({

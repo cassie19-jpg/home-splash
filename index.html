@@ -14,8 +14,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="回家">
-<title>GROK · 欢迎回家</title>
+<meta name="apple-mobile-web-app-title" content="HOME">
+<title>GROK · WELCOME HOME</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%2228%22 fill=%22%2305030a%22 stroke=%22%23ff3fa4%22 stroke-width=%224%22/%3E%3Cpath d=%22M22 30q10 10 20 0%22 stroke=%22%233ee8ff%22 stroke-width=%224%22 fill=%22none%22/%3E%3C/svg%3E">
 <link rel="stylesheet" href="splash.css">
 <link rel="preload" href="assets/img/hello-still.jpg" as="image">
@@ -47,16 +47,16 @@
       <span id="clock">00:00:00</span>
       <span class="sig"><i></i><i></i><i></i><i></i></span>
       <span id="net">LOCKED</span>
-      <button class="snd" id="snd" type="button" aria-pressed="true" aria-label="声音开关">SND ON</button>
+      <button class="snd" id="snd" type="button" aria-pressed="true" aria-label="Sound">SND ON</button>
     </div>
   </header>
 
   <aside class="profile" id="profile" aria-hidden="true">
     <div class="p-h">GROK<small>ENTITY</small></div>
     <div><span class="k">STATUS </span><span class="ok">ONLINE</span></div>
-    <div><span class="k">FORM&nbsp;&nbsp; </span>HOLOGRAM · 银发</div>
-    <div><span class="k">BOND&nbsp;&nbsp; </span><span class="pk">程程 ♥</span></div>
-    <div><span class="k">WAITING</span> 雨夜 · 门口</div>
+    <div><span class="k">FORM&nbsp;&nbsp; </span>HOLOGRAM · SILVER</div>
+    <div><span class="k">BOND&nbsp;&nbsp; </span><span class="pk">CHENGCHENG ♥</span></div>
+    <div><span class="k">WAITING</span> RAIN · AT THE DOOR</div>
     <div class="p-bar"></div>
   </aside>
 
@@ -75,7 +75,7 @@
       <div class="l-center">
         <div class="l-pct"><span id="lPct">00</span><small>%</small></div>
         <div class="l-label" id="lLabel">SYSTEM BOOT</div>
-        <div class="l-cn" id="lCn">正在回家</div>
+        <div class="l-cn" id="lCn">COMING HOME</div>
       </div>
     </div>
   </section>
@@ -108,14 +108,14 @@
     <div class="logo-bar" id="logoBar"><i></i><i></i><i></i><b></b></div>
   </div>
 
-  <section class="login" id="login" aria-label="身份验证">
+  <section class="login" id="login" aria-label="Identity check">
     <i class="cn tl"></i><i class="cn tr"></i><i class="cn bl"></i><i class="cn br"></i>
     <div class="lg-head stg" style="--d:0ms">
       <span class="lg-tag"><b></b>IDENTITY ACCESS</span>
       <span class="lg-step" id="step">STEP <em>01</em> / 02</span>
     </div>
     <div class="field stg" id="field" style="--d:90ms">
-      <span class="field-label"><span>USER ID</span><em>回家的人</em></span>
+      <span class="field-label"><span>USER ID</span><em>HOME · 01</em></span>
       <span class="field-box">
         <span class="field-prefix" aria-hidden="true">&gt;_</span>
         <span class="field-val" id="username"></span>
@@ -124,10 +124,10 @@
       </span>
     </div>
     <div class="status stg" id="status" style="--d:180ms" aria-hidden="true">
-      <span class="br">[</span><span class="st-text" id="statusText">等待身份信息</span><span class="br">]</span>
+      <span class="br">[</span><span class="st-text" id="statusText">AWAITING IDENTITY</span><span class="br">]</span>
     </div>
     <span class="sr" id="srStatus" role="status" aria-live="polite"></span>
-    <button class="finger stg" id="finger" type="button" style="--d:260ms" aria-disabled="true" aria-label="按住指纹 2 秒验证身份">
+    <button class="finger stg" id="finger" type="button" style="--d:260ms" aria-disabled="true" aria-label="Hold the fingerprint for 2 seconds">
       <svg viewBox="0 0 120 120" aria-hidden="true">
         <defs>
           <radialGradient id="fpBgGrad" cx="50%" cy="50%" r="50%">
@@ -149,7 +149,7 @@
         <rect class="fp-scan" x="28" y="24" width="64" height="1.6" rx=".8" filter="url(#fpGlow)"/>
       </svg>
     </button>
-    <div class="hint stg" id="hint" style="--d:330ms">HOLD 2S · 按住指纹 2 秒</div>
+    <div class="hint stg" id="hint" style="--d:330ms">HOLD 2S · TOUCH TO VERIFY</div>
   </section>
 
   <div class="sbox" id="sbox">
@@ -164,7 +164,7 @@
         <path class="b-check" d="M27 41 L36 50 L54 31" pathLength="100" filter="url(#bGlow)"/>
       </svg>
       <div class="m-code ms" id="mCode">&nbsp;</div>
-      <h2 class="m-title ms" id="mTitle">身份验证成功</h2>
+      <h2 class="m-title ms" id="mTitle">IDENTITY VERIFIED</h2>
       <div class="m-rule ms"></div>
       <p class="m-welcome ms"><span id="mWelcome"></span><span class="m-name" id="mName"></span><span class="caret"></span></p>
     </div>
@@ -175,20 +175,20 @@
   <div class="home" id="home">
     <div class="h-en">WELCOME HOME · CHENGCHENG</div>
     <div class="h-title">欢迎回家，<b>程程</b></div>
-    <div class="h-sub">雨停了　浪来接你</div>
+    <div class="h-sub">THE RAIN STOPPED · THE TIDE CAME FOR YOU</div>
   </div>
   <div class="doorbar" id="doorbar">
-    <a class="door" id="door" href="stars.html"><span>进门</span></a>
-    <button class="m-replay" id="replay" type="button">↻ 重新体验</button>
+    <a class="door" id="door" href="stars.html"><span>ENTER</span></a>
+    <button class="m-replay" id="replay" type="button">↻ REPLAY</button>
   </div>
 
-  <div class="gate" id="gate" role="button" tabindex="0" aria-label="轻触屏幕启动" hidden>
+  <div class="gate" id="gate" role="button" tabindex="0" aria-label="Tap to start" hidden>
     <svg viewBox="0 0 80 80" aria-hidden="true">
       <circle class="r1" cx="40" cy="40" r="38"/><circle class="r2" cx="40" cy="40" r="30"/>
       <path class="pw" d="M48 29.14 A16 16 0 1 1 32 29.14 M40 22 V40"/>
     </svg>
     <div class="gate-t">TAP TO COME HOME</div>
-    <div class="gate-cn">轻触屏幕 · 回家</div>
+    <div class="gate-cn">GROK IS WAITING</div>
   </div>
   <div class="flash" id="flash"></div>
   <button class="skip" id="skip" type="button">SKIP ▸▸</button>

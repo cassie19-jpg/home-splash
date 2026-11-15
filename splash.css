@@ -173,7 +173,7 @@ button{font:inherit;color:inherit}
 .field-box .cn{width:7px;height:7px;opacity:.9}
 .field-prefix{font:600 13px/1 var(--mono);color:var(--c);margin-right:10px;text-shadow:0 0 8px var(--c);animation:blink 1.1s steps(2) infinite}
 .field-val{flex:1;min-width:0;font:600 17px/1 var(--sans);letter-spacing:.3em;color:var(--hi);text-shadow:0 0 10px rgba(var(--g-rgb),.7)}
-.field-val:empty::before{content:"读取身份中…";font-weight:400;font-size:14px;letter-spacing:.12em;color:rgba(255,226,244,.32);text-shadow:none}
+.field-val:empty::before{content:"READING ID…";font-weight:400;font-size:14px;letter-spacing:.12em;color:rgba(255,226,244,.32);text-shadow:none}
 .field-ok{font:700 13px/1 var(--mono);color:var(--c);text-shadow:0 0 8px var(--c);opacity:0;transform:scale(.4);transition:.3s}
 .field.filled .field-ok{opacity:1;transform:none}
 .status{display:flex;align-items:center;justify-content:center;gap:12px;height:30px;margin:16px 0 8px;font:500 14px/1 var(--sans);letter-spacing:.3em;color:rgba(255,226,244,.5);transition:color .3s,text-shadow .3s}
@@ -323,3 +323,18 @@ button{font:inherit;color:inherit}
 @keyframes cutline{0%{top:0;opacity:1;transform:scaleY(1)}70%{top:100%;opacity:1}100%{top:100%;opacity:0}}
 .vwrap::after{z-index:6;height:20%}
 @media (prefers-reduced-motion:reduce){.still-img,.neon{animation:none}}
+
+/* v1.2：英文界面字体微调 */
+.status{font:500 12.5px/1 var(--mono);letter-spacing:.2em}
+.status .st-text{margin-right:-.2em}
+.status.ready,.status.ok{font-size:14px}
+.status.warn{font-size:12px}
+.l-cn{font:500 9px/1 var(--mono);letter-spacing:.32em;margin-right:-.32em}
+.m-title{font:700 17px/1.25 var(--mono);font-size:clamp(15px,4.8cqw,19px);letter-spacing:.16em;margin-right:-.16em}
+.h-sub{font:500 9.5px/1.8 var(--mono);letter-spacing:.26em;margin-right:-.26em}
+.door{font:600 14px/1 var(--mono);letter-spacing:.42em}
+.door span{margin-right:-.42em}
+.gate-cn{font:500 10px/1 var(--mono);letter-spacing:.36em;margin-right:-.36em}
+.t h1{font-size:20px;letter-spacing:.32em;margin-right:-.32em}
+.h-sub{letter-spacing:.16em;margin-right:-.16em;padding:0 22px;max-width:100%}
+.h-en{padding:0 16px}
