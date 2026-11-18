@@ -10,6 +10,7 @@ const CUT_AT   = 4.95;  // 视频 1 第几秒扫描线一闪、硬切到静帧�
 const LOGIN_AT = 0.8;   // 切到静帧后多少秒滑出登录面板
 const CARD_AT  = 0.5;   // 验证成功后多少秒弹出"身份验证成功"
 const HELLO_AT = 1.4;   // 验证成功后多少秒打出 HELLO BEAUTIFUL…
+const HELLO_VOICE_MS = 660; // 对齐 helloIn 在 1.1s 动画 60% 处稳定显现
 const FINAL_AT = 4.6;   // 验证成功后多少秒显示底部英文字幕
 const SCENE_MS = 6500;  // 成功场景持续多久后进入结尾
 const SEA_DELAY= 1600;  // 视频 3 结束后多久开始"雨变浪"
@@ -111,7 +112,7 @@ const sndAbort = () => {
 };
 const sndOk = () => { tone(880, .14, { vol: .045 }); tone(1320, .3, { vol: .045, at: .08 }); tone(1760, .4, { vol: .03, at: .18 }); };
 // 浪花声 + 结尾"叮"：真实录音（ElevenLabs 生成），页面加载时就预取，第一次触摸后解码，播放走 WebAudio（无延迟、受 SND 开关控制）
-const SFX_URLS = { wave: 'assets/audio/wave.mp3', ding: 'assets/audio/ding.mp3', hello: 'assets/audio/hello.mp3', bgm: 'assets/audio/bgm.mp3' };
+const SFX_URLS = { wave: 'assets/audio/wave.mp3', ding: 'assets/audio/ding.mp3', hello: 'assets/audio/hello.mp3?v=4', bgm: 'assets/audio/bgm.mp3' };
 const sfxBytes = {}, sfxBuf = {}, sfxEl = {}, sfxReady = {};
 for (const k in SFX_URLS) {
   sfxBytes[k] = fetch(SFX_URLS[k]).then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
@@ -129,14 +130,29 @@ function decodeSfx() {
 }
 function playSfx(k, vol = 1, rate = 1) {
   if (!soundOn) return;
-  if (actx && actx.state === 'running' && sfxBuf[k]) {
-    const s = actx.createBufferSource(), g = actx.createGain();
-    s.buffer = sfxBuf[k]; s.playbackRate.value = rate; g.gain.value = vol;
-    s.connect(g).connect(OUT()); s.start();
-    return;
-  }
+  try {
+    if (actx && actx.state === 'running' && sfxBuf[k]) {
+      const s = actx.createBufferSource(), g = actx.createGain();
+      s.buffer = sfxBuf[k]; s.playbackRate.value = rate; g.gain.value = vol;
+      s.connect(g).connect(OUT()); s.start();
+      return;
+    }
+  } catch (e) {}
   const a = sfxEl[k];
   if (a) { try { a.currentTime = 0; a.volume = Math.min(1, vol); const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+}
+// 配音晚于文字出现，等 helloIn 稳定后再响；失败也不能挡住后续转场
+function scheduleHelloVoice() {
+  const t0 = performance.now();
+  const fire = () => { try { playSfx('hello', 1); duckBgm(); } catch (e) {} };
+  const start = () => {
+    const left = HELLO_VOICE_MS - (performance.now() - t0);
+    if (left > 0) setTimeout(fire, left); else fire();
+  };
+  try {
+    if (sfxReady.hello) Promise.race([sfxReady.hello, sleep(HELLO_VOICE_MS)]).then(start).catch(start);
+    else start();
+  } catch (e) { setTimeout(fire, HELLO_VOICE_MS); }
 }
 // iOS：在用户手势里把后备 <audio> 静音地"点一下"，之后才能随时播放
 let sfxPrimed = false;
@@ -654,7 +670,7 @@ async function success() {
   await until(CARD_AT * 1000);
   showCard();
   await until(HELLO_AT * 1000);
-  hello.classList.add('on'); playSfx('hello', 1); duckBgm();
+  hello.classList.add('on'); scheduleHelloVoice();
   await until(FINAL_AT * 1000);
   showFinal();
   await until(SCENE_MS);
